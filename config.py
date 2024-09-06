@@ -1,7 +1,7 @@
-training_dir = r"/home/ravi/rsp/sig/benchmark/train"
-testing_dir = r"/home/ravi/rsp/sig/benchmark/test"
-training_csv = r"/home/ravi/rsp/sig/benchmark/train.csv"
-testing_csv =  r"/home/ravi/rsp/sig/benchmark/test.csv"
+training_dir = r"C:/Users/hp\Documents/GitHub/benchmark/train"
+testing_dir = r"C:/Users/hp\Documents/GitHub/benchmark/test"
+training_csv = r"C:/Users/hp\Documents/GitHub/benchmark/train.csv"
+testing_csv =  r"C:/Users/hp\Documents/GitHub/benchmark/test.csv"
 
 batch_size = 32
 epochs = 20
