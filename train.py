@@ -85,8 +85,8 @@ dataiter = iter(vis_dataloader)
 
 example_batch = next(dataiter)
 concatenated = torch.cat((example_batch[0], example_batch[1]), 0)
-imshow(torchvision.utils.make_grid(concatenated))
-print(example_batch[2].numpy())
+#imshow(torchvision.utils.make_grid(concatenated))
+#print(example_batch[2].numpy())
 
 
 #create a siamese network
@@ -166,52 +166,75 @@ criterion = ContrastiveLoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=0.0005)
 
 #train the model
-def train(train_dataloader):
-    loss=[] 
-    counter=[]
-    iteration_number = 0
-    for i, data in enumerate(train_dataloader,0):
-      img0, img1 , label = data
-      img0, img1 , label = img0.cuda(), img1.cuda() , label.cuda()
-      optimizer.zero_grad()
-      output1,output2 = net(img0,img1)
-      loss_contrastive = criterion(output1,output2,label)
-      loss_contrastive.backward()
-      optimizer.step()
-      loss.append(loss_contrastive.item())
-    loss = np.array(loss)
-    return loss.mean()/len(train_dataloader)
+# Function to train the model and track loss and accuracy
+def train(train_dataloader, net, criterion, optimizer, epochs):
+    train_losses = []
+    accuracy_list = []
+    threshold = 0.5
+
+    for epoch in range(epochs):
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        net.train()
+        
+        for i, data in enumerate(train_dataloader, 0):
+            img0, img1, label = data
+            img0, img1, label = img0.cuda(), img1.cuda(), label.cuda()
+
+            optimizer.zero_grad()
+
+            output1, output2 = net(img0, img1)
+            loss_contrastive = criterion(output1, output2, label)
+
+            loss_contrastive.backward()
+            optimizer.step()
+
+            # Track running loss
+            running_loss += loss_contrastive.item()
+
+            # Calculate Euclidean distance between embeddings
+            eucledian_distance = F.pairwise_distance(output1, output2)
+
+            # Count correct predictions based on threshold
+            predictions = (eucledian_distance < threshold).float()
+            correct += (predictions == label).sum().item()
+            total += label.size(0)
+
+        # Calculate average loss and accuracy for the epoch
+        epoch_loss = running_loss / len(train_dataloader)
+        epoch_accuracy = correct / total
+
+        train_losses.append(epoch_loss)
+        accuracy_list.append(epoch_accuracy)
+
+        print(f"Epoch [{epoch+1}/{epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
+
+    return train_losses, accuracy_list
 
 
-#def eval(eval_dataloader):
-   # loss=[] 
-   # counter=[]
-  #  iteration_number = 0
-    #for i, data in enumerate(eval_dataloader,0):
-     ## img0, img1 , label = data
-      #img0, img1 , label = img0.cuda(), img1.cuda() , label.cuda()
-      #output1,output2 = net(img0,img1)
-      #loss_contrastive = criterion(output1,output2,label)
-      #loss.append(loss_contrastive.item())
-   # loss = np.array(loss)
-    #return loss.mean()/len(eval_dataloader)
+# Train the model and get loss and accuracy
+epochs = config.epochs
+train_losses, accuracy_list = train(train_dataloader, net, criterion, optimizer, epochs)
 
+# Plot loss curve
+plt.figure(figsize=(10,5))
+plt.title("Training Loss Curve")
+plt.plot(train_losses, label="Train Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
 
-for epoch in range(1,config.epochs):
-  #best_eval_loss = 9999
-  train_loss = train(train_dataloader)
-  #eval_loss = eval(eval_dataloader)
+# Plot accuracy curve
+plt.figure(figsize=(10,5))
+plt.title("Training Accuracy Curve")
+plt.plot(accuracy_list, label="Train Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.show()
 
-  print(f"Training loss{train_loss}")
-  print("-"*20)
-  #print(f"Eval loss{eval_loss}")
-
- # if eval_loss<best_eval_loss:
-   # best_eval_loss = eval_loss
-   # print("-"*20)
-    #print(f"Best Eval loss{best_eval_loss}")
-#torch.save(net.state_dict(), "/content/model.pth")
-print("Model Saved Successfully") 
 
 # Load the test dataset
 test_dataset = SiameseDataset(
@@ -241,5 +264,5 @@ for i, data in enumerate(test_dataloader, 0):
     print("Predicted Eucledian Distance:-", eucledian_distance.item())
     print("Actual Label:-", label)
     count = count + 1
-    if count == 10:
+    if count == 5:
         break
